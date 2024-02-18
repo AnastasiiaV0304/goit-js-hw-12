@@ -1,8 +1,10 @@
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
-import SimpleLightbox from 'simplelightbox';
+
 import 'simplelightbox/dist/simple-lightbox.min.css';
-import axios from 'axios';
+
+import { searchImages } from './js/pixabay-api';
+import { renderImages } from './js/render-functions';
 
 const form = document.querySelector('.form');
 const gallery = document.querySelector('.gallery');
@@ -33,7 +35,7 @@ const hideButton = () => {
 
 let page = 1;
 let per_page = 15;
-let query = '';
+let query;
 let totalHits;
 let lightbox;
 
@@ -44,8 +46,8 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   try {
     query = searchInput.value;
-    const setOfImg = await searchImages();
-    renderImages(setOfImg);
+    const setOfImg = await searchImages(query, page, per_page);
+    renderImages(setOfImg, gallery, lightbox);
     form.reset();
     hideLoader();
     showButton();
@@ -61,6 +63,7 @@ form.addEventListener('submit', async event => {
       });
     }
   } catch (error) {
+    console.log(error);
     iziToast.error({
       title: 'Error',
     });
@@ -69,10 +72,12 @@ form.addEventListener('submit', async event => {
 
 loadBtn.addEventListener('click', async () => {
   showLoader();
+
   try {
     page += 1;
-    const photos = await searchImages();
-    renderImages(photos);
+    const photos = await searchImages(query, page, per_page);
+    totalHits = photos.totalHits;
+    renderImages(photos, gallery, lightbox);
     hideLoader();
 
     const { height: imgHeight } = document
@@ -91,65 +96,10 @@ loadBtn.addEventListener('click', async () => {
       hideButton();
     }
   } catch (error) {
+    console.error(error);
     iziToast.error({
       title: 'Error',
     });
     hideLoader();
   }
 });
-
-async function searchImages() {
-  try {
-    const personalKey = '42271684-72e9093d4988315267462c0c1';
-    const params = new URLSearchParams({
-      key: personalKey,
-      q: query,
-      image_type: 'photo',
-      orientation: 'horizontal',
-      safesearch: true,
-      page: page,
-      per_page: per_page,
-    });
-    const response = await axios.get(`https://pixabay.com/api/?${params}`);
-    totalHits = response.data.totalHits;
-
-    return response.data;
-  } catch (error) {
-    console.log(error);
-    throw error;
-  }
-}
-
-function renderImages(data) {
-  const markup = data.hits
-    .map(data => {
-      return `
-            <li class="gallery-item"><a href="${data.largeImageURL}">
-          <img class="gallery-image" src="${data.webformatURL}" alt="${data.tags}"></a>
-          <p><b>Likes: </b>${data.likes}</p>
-          <p><b>Views: </b>${data.views}</p>
-          <p><b>Comments: </b>${data.comments}</p>
-          <p><b>Downloads: </b>${data.downloads}</p>
-          </li>`;
-    })
-    .join('');
-
-  gallery.insertAdjacentHTML('beforeend', markup);
-
-  if (lightbox) {
-    lightbox.destroy();
-  }
-
-  lightbox = new SimpleLightbox('.gallery a', {
-    captions: true,
-    captionType: 'attr',
-    captionsData: 'alt',
-    captionPosition: 'bottom',
-    fadeSpeed: 150,
-    captionSelector: 'img',
-    captionDelay: 250,
-  });
-
-  lightbox.on('show.simplelightbox').refresh();
-  hideLoader();
-}
