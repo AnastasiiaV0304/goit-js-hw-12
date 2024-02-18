@@ -33,8 +33,9 @@ const hideButton = () => {
 
 let page = 1;
 let per_page = 15;
-let query = ' ';
+let query = '';
 let totalHits;
+let lightbox;
 
 form.addEventListener('submit', async event => {
   page = 1;
@@ -115,7 +116,7 @@ async function searchImages() {
     return response.data;
   } catch (error) {
     console.log(error);
-    throw WebTransportError;
+    throw error;
   }
 }
 
@@ -134,7 +135,12 @@ function renderImages(data) {
     .join('');
 
   gallery.insertAdjacentHTML('beforeend', markup);
-  const lightbox = new SimpleLightbox('.gallery a', {
+
+  if (lightbox) {
+    lightbox.destroy();
+  }
+
+  lightbox = new SimpleLightbox('.gallery a', {
     captions: true,
     captionType: 'attr',
     captionsData: 'alt',
